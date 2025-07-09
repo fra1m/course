@@ -1,0 +1,26 @@
+services:
+  course_db:
+    image: postgres:17.5-alpine3.22
+    restart: always
+    ports:
+      - 5432:5432
+    env_file:
+      - .env
+    volumes:
+      - ./pgdata:/var/lib/postgresql/data
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file:
+      - .env
+    ports:
+      - 8080:8080
+    volumes:
+      - .:/app
+      - /app/node_modules
+    command: yarn dev
+    depends_on:
+      - course_db
+    restart: always
