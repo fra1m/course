@@ -31,14 +31,14 @@ export class CourseEntity extends BaseEntity {
 
   @ApiProperty({ example: true, description: 'Опубликован ли курс' })
   @Column({ default: false })
-  isPublished: boolean;
+  isPublished: boolean; //NOTE может не нужен этот параметр
 
   @OneToMany(() => SectionEntity, (section) => section.course, {
     cascade: true,
   })
   sections: SectionEntity[];
 
-  @OneToMany(() => LessonEntity, (lesson) => lesson.course, { cascade: true })
+  @OneToMany(() => LessonEntity, (lesson) => lesson.courseId, { cascade: true })
   lessons: LessonEntity[];
 
   @ManyToOne(() => UserEntity, (user) => user.authoredCourses)

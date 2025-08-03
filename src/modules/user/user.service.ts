@@ -41,6 +41,17 @@ export class UserService {
     return user;
   }
 
+  async getUserById(userId: number) {
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new HttpException(
+        'Пользователь не найден!',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+    return user;
+  }
+
   async getUserByToken(token: string) {
     const token$ = await this.authService.findToken(token);
     if (!token$) {
@@ -87,7 +98,7 @@ export class UserService {
     return { user, tokens };
   }
 
-  async logount(refreshToken: string) {
+  async logout(refreshToken: string) {
     const token = await this.authService.removeToken(refreshToken);
 
     return token;
@@ -96,7 +107,7 @@ export class UserService {
   async refresh(refreshToken: string) {
     if (!refreshToken) {
       throw new HttpException(
-        'Пользователь не авторизован',
+        'Вам необходимо заново авторизоваться',
         HttpStatus.UNAUTHORIZED,
       );
     }

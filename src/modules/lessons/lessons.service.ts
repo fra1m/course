@@ -1,26 +1,25 @@
 import { Injectable } from '@nestjs/common';
-import { CreateLessonDto } from './dto/create-lesson.dto';
-import { UpdateLessonDto } from './dto/update-lesson.dto';
+import * as fs from 'fs';
+import * as mammoth from 'mammoth';
 
 @Injectable()
 export class LessonsService {
-  create(createLessonDto: CreateLessonDto) {
-    return 'This action adds a new lesson';
-  }
+  async parseDocxToHtml(filePath: string): Promise<string> {
+    const buffer = fs.readFileSync(filePath);
 
-  findAll() {
-    return `This action returns all lessons`;
-  }
+    const { value: html } = await mammoth.convertToHtml(
+      { buffer },
+      {
+        styleMap: [
+          "p[style-name='Heading 1'] => h1:fresh",
+          "p[style-name='Heading 2'] => h2:fresh",
+          "p[style-name='Normal'] => p:fresh",
+          'b => strong',
+          'i => em',
+        ],
+      },
+    );
 
-  findOne(id: number) {
-    return `This action returns a #${id} lesson`;
-  }
-
-  update(id: number, updateLessonDto: UpdateLessonDto) {
-    return `This action updates a #${id} lesson`;
-  }
-
-  remove(id: number) {
-    return `This action removes a #${id} lesson`;
+    return `<div class="docx-content">${html}</div>`;
   }
 }

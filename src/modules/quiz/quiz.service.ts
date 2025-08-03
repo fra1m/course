@@ -1,26 +1,107 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { CreateQuizDto } from './dto/create-quiz.dto';
 import { UpdateQuizDto } from './dto/update-quiz.dto';
+import { QuizEntity } from './entities/quiz.entity';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { JwtPayload } from 'src/interfaces/jwt-payload.interface';
+import { UserService } from '../user/user.service';
+import { DeleteQuizDto } from './dto/delete-quiz.dto';
+import * as pdf2html from 'pdf2html';
 
 @Injectable()
 export class QuizService {
-  create(createQuizDto: CreateQuizDto) {
-    return 'This action adds a new quiz';
+  constructor(
+    @InjectRepository(QuizEntity)
+    private quizRepository: Repository<QuizEntity>,
+    private userService: UserService,
+    // private configService: ConfigService,
+  ) {}
+
+  async saveQuiz(createQuizDto: CreateQuizDto, userPayload: JwtPayload) {
+    const user = await this.userService.getUserById(userPayload.id);
+
+    const surveyJson = await this.quizRepository.save({
+      ...createQuizDto,
+      user,
+    });
+
+    return surveyJson;
   }
 
-  findAll() {
-    return `This action returns all quiz`;
+  async findAll() {
+    const quizzes = await this.quizRepository
+      .createQueryBuilder('quiz')
+      .leftJoinAndSelect('quiz.user', 'user')
+      .select(['quiz.id', 'quiz.surveyJson', 'quiz.createdAt', 'user.id'])
+      .getMany();
+
+    return quizzes.map((q) => ({
+      surveyJson: q.surveyJson,
+      user: { id: q.user.id },
+      id: q.id,
+      createdAt: q.createdAt,
+    }));
+  }
+
+  async getByQuizUserId(userPayload: JwtPayload) {
+    const quizzes = await this.quizRepository
+      .createQueryBuilder('quiz')
+      .leftJoinAndSelect('quiz.user', 'user')
+      .where('user.id = :userId', { userId: userPayload.id }) // <-- фильтрация
+      .select(['quiz.id', 'quiz.surveyJson', 'quiz.createdAt', 'user.id'])
+      .getMany();
+
+    return quizzes.map((q) => ({
+      surveyJson: q.surveyJson,
+      user: { id: q.user.id },
+      id: q.id,
+      createdAt: q.createdAt,
+    }));
   }
 
   findOne(id: number) {
     return `This action returns a #${id} quiz`;
   }
 
-  update(id: number, updateQuizDto: UpdateQuizDto) {
-    return `This action updates a #${id} quiz`;
+  async updateQuize(updateQuizDto: UpdateQuizDto, userPayload: JwtPayload) {
+    const { id, surveyJson } = updateQuizDto;
+
+    const quiz = await this.quizRepository.findOne({
+      where: {
+        id,
+        user: { id: userPayload.id },
+      },
+      relations: ['user'],
+    });
+
+    if (!quiz) {
+      throw new NotFoundException(`Тест не найден у пользователя`);
+    }
+    if (surveyJson) quiz.surveyJson = surveyJson;
+
+    const updatedQuiz = await this.quizRepository.save(quiz);
+
+    return {
+      surveyJson: updatedQuiz.surveyJson,
+    };
   }
 
-  remove(id: number) {
-    return `This action removes a #${id} quiz`;
+  async deleteQuiz(deleteQuizDto: DeleteQuizDto, userPayload: JwtPayload) {
+    const quiz = await this.quizRepository.findOne({
+      where: {
+        id: deleteQuizDto.id,
+        user: { id: userPayload.id },
+      },
+      relations: ['user'],
+    });
+
+    if (!quiz) {
+      throw new NotFoundException(`Тест не найден у пользователя`);
+    }
+
+    await this.quizRepository.remove(quiz); // Фактическое удаление
+
+    return { message: `Тест с ID ${quiz.id} успешно удалён.` };
   }
 }

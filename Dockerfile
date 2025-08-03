@@ -1,5 +1,5 @@
 FROM node:24-alpine
-RUN apk add --no-cache bash
+RUN apk add --no-cache openjdk17 bash
 WORKDIR /app
 COPY package.json yarn.lock .yarnrc.yml ./
 RUN yarn

@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsEmail, IsString, Length } from 'class-validator';
-import { Role } from '../entities/user.entity';
+// import { Role } from '../entities/user.entity';
 
 export class CreateUserDto {
   @ApiProperty({
@@ -27,13 +27,13 @@ export class CreateUserDto {
   @IsString({ message: 'Должно быть строкой' })
   name: string;
 
-  @ApiProperty({
-    enum: Role,
-    example: Role.USER,
-    description: 'Роль пользователя',
-  })
-  @IsString({ message: 'Должно быть строкой' })
-  role: Role;
+  // @ApiProperty({
+  //   enum: Role,
+  //   example: Role.USER,
+  //   description: 'Роль пользователя',
+  // })
+  // @IsString({ message: 'Должно быть строкой' })
+  // role: Role;
 }
 
 // TODO: мб потом надо

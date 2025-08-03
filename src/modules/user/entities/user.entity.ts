@@ -10,6 +10,7 @@ import {
 import { ApiProperty } from '@nestjs/swagger';
 import { TokenEntity } from 'src/modules/auth/entities/token.entity';
 import { CourseEntity } from 'src/modules/courses/entities/course.entity';
+import { QuizEntity } from 'src/modules/quiz/entities/quiz.entity';
 
 export enum Role {
   USER = 'user',
@@ -29,7 +30,6 @@ export class UserEntity extends BaseEntity {
     description: 'Массив токенов пользователя',
   })
   @OneToMany(() => TokenEntity, (token) => token.userId)
-  // @JoinColumn({ name: 'tokenId' })
   token: TokenEntity[];
 
   @ApiProperty({
@@ -83,6 +83,16 @@ export class UserEntity extends BaseEntity {
   })
   @OneToMany(() => CourseEntity, (course) => course.teacher)
   authoredCourses: CourseEntity[];
+
+  @ApiProperty({
+    example: [QuizEntity],
+    description: 'Массив токенов пользователя',
+  })
+  @OneToMany(() => QuizEntity, (quiz) => quiz.user, {
+    cascade: true, // <--- Вот здесь
+    onDelete: 'CASCADE',
+  })
+  quizzes: QuizEntity[];
 }
 
 // TODO: в дальнейшем мб надо

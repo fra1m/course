@@ -41,7 +41,7 @@ export class RolesGuard implements CanActivate {
     const [bearer, token] = authHeader.split(' ');
 
     if (bearer !== 'Bearer' || !token) {
-      throw new UnauthorizedException('Неверный формат токена');
+      throw new UnauthorizedException('Вам необходимо авторизоваться');
     }
 
     try {

@@ -31,6 +31,6 @@ export class SectionEntity extends BaseEntity {
   @Column()
   courseId: number;
 
-  @OneToMany(() => LessonEntity, (lesson) => lesson.section)
+  @OneToMany(() => LessonEntity, (lesson) => lesson.sectionId)
   lessons: LessonEntity[];
 }

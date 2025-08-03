@@ -24,3 +24,13 @@ services:
     depends_on:
       - course_db
     restart: always
+
+  # frontend:
+  #   build:
+  #     context: ../client
+  #     dockerfile: Dockerfile
+  #   ports:
+  #     - '3000:3000'
+  #   restart: always
+  #   depends_on:
+  #     - api

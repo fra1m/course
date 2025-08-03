@@ -1,9 +1,13 @@
+// TODO: Добавить сервис PDF для чтения и преобразование в HTML дя фронта
+// TODO: npm install pdf-parse
+// TODO: npm install --save-dev @types/pdf-parse
+
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ConfigService } from '@nestjs/config';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { ValidationPipe } from './pipes/validation.pipe';
-// import * as cookieParser from 'cookie-parser';
+import * as cookieParser from 'cookie-parser';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -23,17 +27,17 @@ async function bootstrap() {
 
   app.useGlobalPipes(new ValidationPipe());
 
-  // app.enableCors({
-  //   origin: configService.get('CLIENT_URL'), // Разрешаем запросы только с этого домена
-  //   methods: 'GET,HEAD,PUT,PATCH,POST,DELETE', // Разрешенные методы
-  //   credentials: true, // Если нужно передавать cookies или заголовки авторизации
-  // });
+  app.enableCors({
+    origin: configService.get<string>('CLIENT_URL'), // Разрешаем запросы только с этого домена
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE', // Разрешенные методы
+    credentials: true, // Если нужно передавать cookies или заголовки авторизации
+  });
 
-  // app.use(cookieParser());
+  app.use(cookieParser());
 
   await app.listen(port);
   console.log(
     `App started on ${host}${port}\nДокументация: ${host}${port}/swagger`,
   );
 }
-bootstrap();
+void bootstrap();

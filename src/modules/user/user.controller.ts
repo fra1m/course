@@ -10,6 +10,8 @@ import {
   // UseInterceptors,
   // HttpException,
   Patch,
+  Logger,
+  UseGuards,
 } from '@nestjs/common';
 import {
   // ApiBadRequestResponse,
@@ -29,6 +31,7 @@ import { Cookies } from 'src/decorators/cookie.decorator';
 import { AuthUserDto } from '../auth/dto/authUser.dto';
 import { TokenEntity } from '../auth/entities/token.entity';
 import { UserService } from './user.service';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
 @ApiTags('User CRUD')
 // @UseInterceptors(LoggingInterceptor)
@@ -59,7 +62,7 @@ export class UserController {
       });
       return res
         .status(HttpStatus.OK)
-        .json({ message: 'Congratulations, you can play', ...payload });
+        .json({ message: 'Congratulations, you can study', ...payload });
     } catch (error) {
       return handleError(res, error);
     }
@@ -72,6 +75,8 @@ export class UserController {
   @Post('/auth')
   async authUser(@Body() userDto: AuthUserDto, @Res() res: Response) {
     try {
+      Logger.debug('auth');
+
       const payload = await this.userService.authUser(userDto);
       res.cookie('refreshToken', payload.tokens.refreshToken, {
         maxAge: 30 * 24 * 60 * 60 * 1000,
@@ -79,7 +84,7 @@ export class UserController {
       });
       return res
         .status(HttpStatus.OK)
-        .json({ message: 'Congratulations, you can play', ...payload });
+        .json({ message: 'Congratulations, you can study', ...payload });
     } catch (error) {
       return handleError(res, error);
     }
@@ -96,8 +101,7 @@ export class UserController {
           .status(HttpStatus.UNAUTHORIZED)
           .json({ message: 'Вы не авторизованы' });
       }
-      await this.userService.logount(token);
-
+      await this.userService.logout(token);
       return res
         .status(HttpStatus.OK)
         .clearCookie('refreshToken')
@@ -113,34 +117,28 @@ export class UserController {
   @Get('/refresh')
   async refresh(@Cookies('refreshToken') token: string, @Res() res: Response) {
     try {
+      Logger.debug('refresh-token', token);
+
       const payload = await this.userService.refresh(token);
       res.cookie('refreshToken', payload.tokens.refreshToken, {
         maxAge: 30 * 24 * 60 * 60 * 1000,
         httpOnly: true,
       });
+
       return res
         .status(HttpStatus.OK)
-        .json({ message: 'Congratulations, you can play', ...payload });
+        .json({ message: 'Congratulations, you can study', ...payload });
     } catch (error) {
       return handleError(res, error);
     }
   }
 
-  @ApiCookieAuth('refreshToken')
+  @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Смена пароля' })
   // @ApiResponse({ status: 200, type: updateUserResponseSchema })
   @Patch('/patch')
-  async userPatch(
-    @Cookies('refreshToken') token: string,
-    @Body() updateUserDto: UpdateUserDto,
-    @Res() res: Response,
-  ) {
+  async userPatch(@Body() updateUserDto: UpdateUserDto, @Res() res: Response) {
     try {
-      if (!token) {
-        return res
-          .status(HttpStatus.UNAUTHORIZED)
-          .json({ message: 'Вы не авторизованы' });
-      }
       const payload = await this.userService.updateUser(updateUserDto);
 
       if (payload === false) {
@@ -179,10 +177,10 @@ export class UserController {
       return res
         .status(HttpStatus.OK)
         .clearCookie('refreshToken')
-        .json({ message: 'Пароль успешно сброше' });
+        .json({ message: 'Пароль успешно сброшен' });
     } catch (error) {
       return handleError(res, error);
     }
   }
-  //TODO: delete(user), patch(email)
+  //TODO : delete(user), patch(email)
 }
