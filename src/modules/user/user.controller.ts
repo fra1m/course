@@ -55,10 +55,15 @@ export class UserController {
   async registrationUser(@Body() userDto: CreateUserDto, @Res() res: Response) {
     try {
       const payload = await this.userService.registrationUser(userDto);
+      Logger.debug('reg', payload);
+
+      console.dir(payload, { depth: null });
       res.cookie('refreshToken', payload.tokens.refreshToken, {
         maxAge: 30 * 24 * 60 * 60 * 1000,
         httpOnly: true,
-        sameSite: 'strict',
+        sameSite: 'lax',
+        secure: false, // локально БЕЗ https должно быть false
+        path: '/', // чтобы /user/refresh видел куку
       });
       return res
         .status(HttpStatus.OK)
@@ -81,6 +86,9 @@ export class UserController {
       res.cookie('refreshToken', payload.tokens.refreshToken, {
         maxAge: 30 * 24 * 60 * 60 * 1000,
         httpOnly: true,
+        sameSite: 'lax',
+        secure: false, // локально БЕЗ https должно быть false
+        path: '/', // чтобы /user/refresh видел куку
       });
       return res
         .status(HttpStatus.OK)
@@ -123,6 +131,9 @@ export class UserController {
       res.cookie('refreshToken', payload.tokens.refreshToken, {
         maxAge: 30 * 24 * 60 * 60 * 1000,
         httpOnly: true,
+        sameSite: 'lax',
+        secure: false, // локально БЕЗ https должно быть false
+        path: '/', // чтобы /user/refresh видел куку
       });
 
       return res

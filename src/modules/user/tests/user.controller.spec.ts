@@ -70,7 +70,7 @@ describe('UserController', () => {
         expect.objectContaining({
           maxAge: 30 * 24 * 60 * 60 * 1000,
           httpOnly: true,
-          sameSite: 'strict',
+          sameSite: 'lax',
         }),
       );
       expect(response.status).toHaveBeenCalledWith(HttpStatus.OK);

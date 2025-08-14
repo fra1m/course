@@ -4,6 +4,7 @@ import {
   Injectable,
   PipeTransform,
   ValidationError,
+  Logger,
 } from '@nestjs/common';
 import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
@@ -33,6 +34,8 @@ function extractValidationErrors(
 
 @Injectable()
 export class ValidationPipe implements PipeTransform<any> {
+  private readonly logger = new Logger(ValidationPipe.name);
+
   private isPrimitiveType(metatype: any): boolean {
     const types: any[] = [String, Boolean, Number, Array, Object];
     return types.includes(metatype);
@@ -62,7 +65,8 @@ export class ValidationPipe implements PipeTransform<any> {
 
     if (errors.length) {
       const message = extractValidationErrors(errors);
-      console.log(message); // выводим в читаемом виде
+
+      this.logger.error(message);
       const messages = errors.map((err) => {
         return `${err.property} - ${Object.values(err.constraints ?? {}).join(', ')}`;
       });

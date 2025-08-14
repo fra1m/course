@@ -23,7 +23,7 @@ import { Roles } from 'src/decorators/roles-auth.decorator';
 import { RolesGuard } from '../auth/roles.quard';
 
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles('user')
+@Roles('admin')
 @Controller('quiz')
 export class QuizController {
   constructor(private readonly quizService: QuizService) {}
@@ -49,7 +49,7 @@ export class QuizController {
   async getQuiz(@User() user: JwtPayload, @Res() res: Response) {
     try {
       const payload = await this.quizService.getByQuizUserId(user);
-
+      console.dir(payload, { depth: null, color: true });
       return res.status(HttpStatus.OK).json(payload);
     } catch (error) {
       return handleError(res, error);

@@ -9,27 +9,33 @@ import { LessonsModule } from './modules/lessons/lessons.module';
 import { SectionsModule } from './modules/sections/sections.module';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { CoursesModule } from './modules/courses/courses.module';
+import { HealthModule } from './modules/health/health.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       // cache: true,
       isGlobal: true,
-      envFilePath: `.env`,
+      envFilePath:
+        process.env.NODE_ENV === 'production' ? [] : ['.env', '../.env'],
+      expandVariables: true,
     }),
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
-      useFactory: (configService: ConfigService) => ({
+      useFactory: () => ({
         type: 'postgres',
-        host: configService.get('POSTGRES_HOST'),
-        port: configService.get('POSTGRES_PORT'),
-        username: configService.get('POSTGRES_USER'),
-        password: configService.get('POSTGRES_PASSWORD'),
-        database: configService.get('POSTGRES_DB'),
+        host: process.env.POSTGRES_HOST,
+        port: Number(process.env.POSTGRES_PORT ?? 5432),
+
+        database: process.env.POSTGRES_DB,
+        username: process.env.POSTGRES_USER,
+        password: process.env.POSTGRES_PASSWORD,
+
         autoLoadEntities: true,
-        synchronize: true,
-        logging: true,
+        synchronize: true, // dev-плюшка
+        logging: ['error', 'warn', 'query'],
+        maxQueryExecutionTime: 500,
       }),
     }),
     AnalyticsModule,
@@ -40,6 +46,7 @@ import { CoursesModule } from './modules/courses/courses.module';
     QuizModule,
     SectionsModule,
     UserModule,
+    HealthModule,
   ],
   controllers: [],
   providers: [],

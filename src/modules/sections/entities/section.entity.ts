@@ -1,4 +1,3 @@
-// src/modules/section/entities/section.entity.ts
 import {
   Entity,
   PrimaryGeneratedColumn,
@@ -26,10 +25,7 @@ export class SectionEntity extends BaseEntity {
     onDelete: 'CASCADE',
   })
   @JoinColumn({ name: 'courseId' })
-  course: CourseEntity;
-
-  @Column()
-  courseId: number;
+  courseId: CourseEntity;
 
   @OneToMany(() => LessonEntity, (lesson) => lesson.sectionId)
   lessons: LessonEntity[];

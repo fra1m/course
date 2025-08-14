@@ -1,4 +1,7 @@
-.git
 node_modules
 dist
+coverage
+.git
 *.log
+Dockerfile
+docker/

@@ -10,7 +10,9 @@ import { ValidationPipe } from './pipes/validation.pipe';
 import * as cookieParser from 'cookie-parser';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, {
+    logger: ['log', 'error', 'warn', 'debug', 'verbose'],
+  });
 
   const configService = app.get(ConfigService);
   const port = configService.get<number>('API_PORT', 3000);
@@ -23,21 +25,17 @@ async function bootstrap() {
     .build();
 
   const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('/swagger', app, document);
+  SwaggerModule.setup('/docs', app, document);
 
   app.useGlobalPipes(new ValidationPipe());
 
-  app.enableCors({
-    origin: configService.get<string>('CLIENT_URL'), // Разрешаем запросы только с этого домена
-    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE', // Разрешенные методы
-    credentials: true, // Если нужно передавать cookies или заголовки авторизации
-  });
+  app.enableCors({ origin: process.env.CLIENT_URL, credentials: true });
 
   app.use(cookieParser());
 
-  await app.listen(port);
+  await app.listen(process.env.API_PORT ?? 8080);
   console.log(
-    `App started on ${host}${port}\nДокументация: ${host}${port}/swagger`,
+    `App started on ${await app.getUrl()} \n ${host}${port}\nДокументация: ${host}${port}/docs`,
   );
 }
 void bootstrap();

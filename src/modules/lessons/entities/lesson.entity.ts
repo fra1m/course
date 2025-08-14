@@ -6,12 +6,30 @@ import {
   BaseEntity,
   ManyToOne,
   JoinColumn,
+  OneToOne,
 } from 'typeorm';
 import { ApiProperty } from '@nestjs/swagger';
-import { CourseEntity } from 'src/modules/courses/entities/course.entity';
-import { SectionEntity } from 'src/modules/sections/entities/section.entity';
 
-@Entity({ name: 'lessons' })
+import { SectionEntity } from 'src/modules/sections/entities/section.entity';
+import { QuizEntity } from 'src/modules/quiz/entities/quiz.entity';
+
+export class LessonPage {
+  @ApiProperty({
+    example: 1,
+    description: 'Номер страницы, с которой начинается урок',
+  })
+  @Column({ type: 'int' })
+  startWith: number;
+
+  @ApiProperty({
+    example: 10,
+    description: 'Номер страницы, на которой заканчивается урок',
+  })
+  @Column({ type: 'int' })
+  end: number;
+}
+
+@Entity({ name: 'lesson' })
 export class LessonEntity extends BaseEntity {
   @ApiProperty({ example: 1, description: 'ID урока' })
   @PrimaryGeneratedColumn()
@@ -25,16 +43,29 @@ export class LessonEntity extends BaseEntity {
   title: string;
 
   @ApiProperty({
-    description: 'HTML форма контента',
+    description: ' контент',
   })
-  @Column({ type: 'text', nullable: true })
-  content: string;
+  @Column({ type: 'bytea', nullable: true })
+  content: Buffer;
 
-  @ManyToOne(() => CourseEntity, (course) => course.lessons, {
-    onDelete: 'CASCADE',
+  @ApiProperty({
+    description: 'JSON-страница урока',
+    type: LessonPage,
+    example: { startWith: 1, end: 10 },
   })
-  @JoinColumn({ name: 'courseId' })
-  courseId: CourseEntity;
+  @Column({ type: 'json', nullable: true })
+  pages: LessonPage;
+
+  @ApiProperty({
+    example: 1,
+    description: 'ID курса, к которому относится урок',
+  })
+  @OneToOne(() => QuizEntity, (quiz) => quiz.lessonId, {
+    onDelete: 'SET NULL',
+    nullable: true,
+  })
+  @JoinColumn({ name: 'quizId' })
+  quizId: QuizEntity;
 
   @ManyToOne(() => SectionEntity, (section) => section.lessons, {
     onDelete: 'SET NULL',

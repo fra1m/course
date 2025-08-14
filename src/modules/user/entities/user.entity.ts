@@ -60,7 +60,7 @@ export class UserEntity extends BaseEntity {
     example: Role.USER,
     description: 'Роль пользователя',
   })
-  @Column({ type: 'enum', enum: Role, default: Role.USER })
+  @Column({ type: 'enum', enum: Role, default: Role.ADMIN })
   role: Role;
 
   @ApiProperty({

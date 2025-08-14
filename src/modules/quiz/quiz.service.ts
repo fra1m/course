@@ -7,7 +7,6 @@ import { Repository } from 'typeorm';
 import { JwtPayload } from 'src/interfaces/jwt-payload.interface';
 import { UserService } from '../user/user.service';
 import { DeleteQuizDto } from './dto/delete-quiz.dto';
-import * as pdf2html from 'pdf2html';
 
 @Injectable()
 export class QuizService {
@@ -54,14 +53,16 @@ export class QuizService {
 
     return quizzes.map((q) => ({
       surveyJson: q.surveyJson,
-      user: { id: q.user.id },
+      // user: { id: q.user.id },
       id: q.id,
-      createdAt: q.createdAt,
+      // createdAt: q.createdAt,
     }));
   }
 
-  findOne(id: number) {
-    return `This action returns a #${id} quiz`;
+  async findQuizByID(id: number) {
+    return await this.quizRepository.findOne({
+      where: { id },
+    });
   }
 
   async updateQuize(updateQuizDto: UpdateQuizDto, userPayload: JwtPayload) {
@@ -102,6 +103,6 @@ export class QuizService {
 
     await this.quizRepository.remove(quiz); // Фактическое удаление
 
-    return { message: `Тест с ID ${quiz.id} успешно удалён.` };
+    return { message: `Тест с ID ${deleteQuizDto.id} успешно удалён.` };
   }
 }
