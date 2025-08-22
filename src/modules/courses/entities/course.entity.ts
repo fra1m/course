@@ -3,14 +3,14 @@ import {
   PrimaryGeneratedColumn,
   Column,
   BaseEntity,
-  OneToMany,
   ManyToMany,
   ManyToOne,
+  OneToMany,
 } from 'typeorm';
-import { ApiProperty } from '@nestjs/swagger';
-import { SectionEntity } from 'src/modules/sections/entities/section.entity';
+import { ApiHideProperty, ApiProperty } from '@nestjs/swagger';
 
 import { UserEntity } from 'src/modules/user/entities/user.entity';
+import { LessonEntity } from 'src/modules/lessons/entities/lesson.entity';
 
 @Entity({ name: 'courses' })
 export class CourseEntity extends BaseEntity {
@@ -29,25 +29,20 @@ export class CourseEntity extends BaseEntity {
   @Column({ type: 'text' })
   description: string;
 
-  // @ApiProperty({ example: true, description: 'Опубликован ли курс' })
-  // @Column({ default: false })
-  // isPublished: boolean; //NOTE может не нужен этот параметр
-
-  @ApiProperty({
-    type: () => SectionEntity,
-    isArray: true,
-    description: 'Секции, входящие в курс',
+  // @ApiProperty({ type: () => LessonEntity, isArray: true })
+  @OneToMany(() => LessonEntity, (lesson) => lesson.courseId, {
+    cascade: ['insert', 'update'],
   })
-  @OneToMany(() => SectionEntity, (section) => section.courseId, {
-    cascade: true,
-  })
-  sections: SectionEntity[];
+  lessons: LessonEntity[];
 
   @ApiProperty({
     type: () => UserEntity,
     description: 'Преподаватель курса',
   })
-  @ManyToOne(() => UserEntity, (user) => user.authoredCourses)
+  @ManyToOne(() => UserEntity, (user) => user.authoredCourses, {
+    onDelete: 'SET NULL', // курсы сохранятся, teacher=null
+    nullable: true,
+  })
   teacher: UserEntity;
 
   @ApiProperty({
@@ -57,4 +52,8 @@ export class CourseEntity extends BaseEntity {
   })
   @ManyToMany(() => UserEntity, (user) => user.enrolledCourses)
   students?: UserEntity[];
+
+  @ApiHideProperty()
+  @Column({ nullable: false })
+  filePath: string;
 }

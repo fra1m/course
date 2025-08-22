@@ -55,8 +55,6 @@ export class ValidationPipe implements PipeTransform<any> {
       enableImplicitConversion: true,
     });
 
-    console.dir(obj, { depth: null });
-
     const errors = await validate(obj, {
       whitelist: false,
       forbidNonWhitelisted: false,

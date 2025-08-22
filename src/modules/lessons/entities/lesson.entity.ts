@@ -4,14 +4,13 @@ import {
   PrimaryGeneratedColumn,
   Column,
   BaseEntity,
-  ManyToOne,
   JoinColumn,
   OneToOne,
+  ManyToOne,
 } from 'typeorm';
 import { ApiProperty } from '@nestjs/swagger';
-
-import { SectionEntity } from 'src/modules/sections/entities/section.entity';
 import { QuizEntity } from 'src/modules/quiz/entities/quiz.entity';
+import { CourseEntity } from 'src/modules/courses/entities/course.entity';
 
 export class LessonPage {
   @ApiProperty({
@@ -43,10 +42,10 @@ export class LessonEntity extends BaseEntity {
   title: string;
 
   @ApiProperty({
-    description: ' контент',
+    description: 'Путь контента урока',
   })
-  @Column({ type: 'bytea', nullable: true })
-  content: Buffer;
+  @Column({ nullable: false })
+  filePath: string;
 
   @ApiProperty({
     description: 'JSON-страница урока',
@@ -61,15 +60,18 @@ export class LessonEntity extends BaseEntity {
     description: 'ID курса, к которому относится урок',
   })
   @OneToOne(() => QuizEntity, (quiz) => quiz.lessonId, {
-    onDelete: 'SET NULL',
+    // onDelete: 'CASCADE',
     nullable: true,
+    // cascade: true,
   })
   @JoinColumn({ name: 'quizId' })
   quizId: QuizEntity;
 
-  @ManyToOne(() => SectionEntity, (section) => section.lessons, {
-    onDelete: 'SET NULL',
+  // ---- Курс (многие уроки к одному курсу) ----
+  @ManyToOne(() => CourseEntity, (course) => course.lessons, {
+    nullable: true,
+    onDelete: 'CASCADE',
   })
-  @JoinColumn({ name: 'sectionId' })
-  sectionId: SectionEntity;
+  @JoinColumn({ name: 'courseId' })
+  courseId: CourseEntity;
 }

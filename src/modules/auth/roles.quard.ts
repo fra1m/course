@@ -63,7 +63,7 @@ export class RolesGuard implements CanActivate {
       // if (e.name === 'TokenExpiredError') {
       //   throw new UnauthorizedException('Токен истёк');
       // }
-
+      console.log('UNATARIZED');
       throw new HttpException('Доступ запрещён', HttpStatus.FORBIDDEN);
     }
   }

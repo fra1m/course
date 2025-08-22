@@ -42,8 +42,7 @@ export class QuizEntity extends BaseEntity {
     description: 'ID урока, к которому относится опрос',
   })
   @OneToOne(() => LessonEntity, (lesson) => lesson.quizId, {
-    onDelete: 'SET NULL',
-    nullable: true,
+    onDelete: 'CASCADE',
   })
   lessonId: LessonEntity;
 

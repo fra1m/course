@@ -39,6 +39,14 @@ export class CreateLessonDto {
   @ApiProperty({
     example: 1,
     required: false,
+    description: 'ID курса (Course), связанного с уроком',
+  })
+  @IsInt()
+  courseId: number;
+
+  @ApiProperty({
+    example: 1,
+    required: false,
     description: 'ID теста (Quiz), связанного с уроком',
   })
   @IsInt()

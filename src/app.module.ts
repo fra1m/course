@@ -3,16 +3,20 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { UserModule } from './modules/user/user.module';
 import { AuthModule } from './modules/auth/auth.module';
-import { MediaModule } from './modules/media/media.module';
 import { QuizModule } from './modules/quiz/quiz.module';
 import { LessonsModule } from './modules/lessons/lessons.module';
-import { SectionsModule } from './modules/sections/sections.module';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { CoursesModule } from './modules/courses/courses.module';
 import { HealthModule } from './modules/health/health.module';
+import { MulterModule } from '@nestjs/platform-express';
 
 @Module({
   imports: [
+    MulterModule.registerAsync({
+      useFactory: () => ({
+        dest: process.cwd() + 'dist/static',
+      }),
+    }),
     ConfigModule.forRoot({
       // cache: true,
       isGlobal: true,
@@ -34,7 +38,7 @@ import { HealthModule } from './modules/health/health.module';
 
         autoLoadEntities: true,
         synchronize: true, // dev-плюшка
-        logging: ['error', 'warn', 'query'],
+        // logging: ['error', 'warn', 'query'],
         maxQueryExecutionTime: 500,
       }),
     }),
@@ -42,9 +46,7 @@ import { HealthModule } from './modules/health/health.module';
     AuthModule,
     CoursesModule,
     LessonsModule,
-    MediaModule,
     QuizModule,
-    SectionsModule,
     UserModule,
     HealthModule,
   ],

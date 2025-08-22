@@ -7,7 +7,7 @@ import {
   JoinTable,
   ManyToMany,
 } from 'typeorm';
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiHideProperty, ApiProperty } from '@nestjs/swagger';
 import { TokenEntity } from 'src/modules/auth/entities/token.entity';
 import { CourseEntity } from 'src/modules/courses/entities/course.entity';
 import { QuizEntity } from 'src/modules/quiz/entities/quiz.entity';
@@ -63,13 +63,8 @@ export class UserEntity extends BaseEntity {
   @Column({ type: 'enum', enum: Role, default: Role.ADMIN })
   role: Role;
 
-  @ApiProperty({
-    type: () => [CourseEntity],
-    description: 'Курсы, на которые пользователь подписан (студент)',
-  })
-  @ManyToMany(() => CourseEntity, (course) => course.students, {
-    cascade: true,
-  })
+  @ApiHideProperty() //TODO: разберись как в свагере отображать
+  @ManyToMany(() => CourseEntity, (course) => course.students)
   @JoinTable({
     name: 'user_courses',
     joinColumn: { name: 'user_id', referencedColumnName: 'id' },
@@ -77,10 +72,7 @@ export class UserEntity extends BaseEntity {
   })
   enrolledCourses: CourseEntity[];
 
-  @ApiProperty({
-    type: () => [CourseEntity],
-    description: 'Курсы, созданные пользователем (преподаватель)',
-  })
+  @ApiHideProperty() //TODO: разберись как в свагере отображать
   @OneToMany(() => CourseEntity, (course) => course.teacher)
   authoredCourses: CourseEntity[];
 
@@ -89,20 +81,8 @@ export class UserEntity extends BaseEntity {
     description: 'Массив токенов пользователя',
   })
   @OneToMany(() => QuizEntity, (quiz) => quiz.user, {
-    cascade: true, // <--- Вот здесь
+    cascade: true,
     onDelete: 'CASCADE',
   })
   quizzes: QuizEntity[];
 }
-
-// TODO: в дальнейшем мб надо
-// @ApiProperty({ example: false, description: 'Статус автивации по почте' })
-// @Column({ default: false })
-// isActivated: boolean;
-
-// @ApiProperty({
-//   example: '97541ee5-795d-4a2d-a04b-4f7473c6822f',
-//   description: 'Ссылка подтверждения почты',
-// })
-// @Column()
-// activationLink: string;

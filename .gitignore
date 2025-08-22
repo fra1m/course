@@ -5,6 +5,7 @@
 /.env
 .yarn
 /pgdata
+*.tsbuildinfo
 
 # Logs
 logs
