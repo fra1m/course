@@ -143,8 +143,6 @@ export class CoursesService {
       ],
     });
 
-    console.dir(course, { depth: null });
-
     if (!course) {
       throw new NotFoundException(`Курс не найден у пользователя`);
     }

@@ -18,6 +18,8 @@ export class QuizService {
   ) {}
 
   async saveQuiz(createQuizDto: CreateQuizDto, userPayload: JwtPayload) {
+    console.log(userPayload.id);
+
     const user = await this.userService.getUserById(userPayload.id);
 
     const surveyJson = await this.quizRepository.save({

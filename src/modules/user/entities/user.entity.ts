@@ -6,11 +6,13 @@ import {
   OneToMany,
   JoinTable,
   ManyToMany,
+  OneToOne,
 } from 'typeorm';
 import { ApiHideProperty, ApiProperty } from '@nestjs/swagger';
 import { TokenEntity } from 'src/modules/auth/entities/token.entity';
 import { CourseEntity } from 'src/modules/courses/entities/course.entity';
 import { QuizEntity } from 'src/modules/quiz/entities/quiz.entity';
+import { UserStatsEntity } from './user-stats.entity';
 
 export enum Role {
   USER = 'user',
@@ -29,7 +31,9 @@ export class UserEntity extends BaseEntity {
     example: [TokenEntity],
     description: 'Массив токенов пользователя',
   })
-  @OneToMany(() => TokenEntity, (token) => token.userId)
+  @OneToMany(() => TokenEntity, (token) => token.userId, {
+    onDelete: 'CASCADE',
+  })
   token: TokenEntity[];
 
   @ApiProperty({
@@ -63,12 +67,11 @@ export class UserEntity extends BaseEntity {
   @Column({ type: 'enum', enum: Role, default: Role.ADMIN })
   role: Role;
 
-  @ApiHideProperty() //TODO: разберись как в свагере отображать
   @ManyToMany(() => CourseEntity, (course) => course.students)
   @JoinTable({
     name: 'user_courses',
-    joinColumn: { name: 'user_id', referencedColumnName: 'id' },
-    inverseJoinColumn: { name: 'course_id', referencedColumnName: 'id' },
+    joinColumns: [{ name: 'user_id', referencedColumnName: 'id' }],
+    inverseJoinColumns: [{ name: 'course_id', referencedColumnName: 'id' }],
   })
   enrolledCourses: CourseEntity[];
 
@@ -85,4 +88,14 @@ export class UserEntity extends BaseEntity {
     onDelete: 'CASCADE',
   })
   quizzes: QuizEntity[];
+
+  @OneToOne(() => UserStatsEntity, (stats) => stats.user, {
+    cascade: ['insert', 'update'], // создаём/обновляем stats вместе с пользователем
+    eager: true, // автоматически подтягивать stats (опционально)
+  })
+  @ApiProperty({
+    type: () => UserStatsEntity,
+    description: 'Статистика пользователя',
+  })
+  stats: UserStatsEntity;
 }

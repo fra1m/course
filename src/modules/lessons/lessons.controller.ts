@@ -24,13 +24,14 @@ import { RolesGuard } from '../auth/roles.quard';
 import { handleError } from 'src/utils/handleError';
 import { basename } from 'path';
 import { randomInt } from 'crypto';
+import { Role } from '../user/entities/user.entity';
 
-// @UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('lessons')
 export class LessonsController {
   constructor(private readonly lessonsService: LessonsService) {}
 
-  @Roles('admin')
+  @Roles(Role.TEACHER, Role.ADMIN)
   @Post('/create')
   async saveLesson(@Res() res: Response, @Body() body: CreateLessonDto) {
     try {
@@ -44,7 +45,7 @@ export class LessonsController {
     }
   }
 
-  @Roles('admin')
+  @Roles(Role.STUDENT, Role.TEACHER, Role.ADMIN)
   @Get(':id/content')
   async streamLessonContent(@Param('id') id: string, @Res() res: Response) {
     try {
@@ -63,7 +64,7 @@ export class LessonsController {
     }
   }
 
-  @Roles('admin')
+  @Roles(Role.STUDENT, Role.TEACHER, Role.ADMIN)
   @Get('all')
   async getAllLessons(@Req() req: Request, @Res() res: Response) {
     try {

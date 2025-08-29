@@ -1,5 +1,5 @@
+// FIXME: исправить, чтобы ученики тоже могли иметь возможность получить уроки
 import { Response } from 'express';
-
 import {
   Controller,
   Get,
@@ -21,13 +21,14 @@ import { handleError } from 'src/utils/handleError';
 import { DeleteQuizDto } from './dto/delete-quiz.dto';
 import { Roles } from 'src/decorators/roles-auth.decorator';
 import { RolesGuard } from '../auth/roles.quard';
+import { Role } from '../user/entities/user.entity';
 
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles('admin')
 @Controller('quiz')
 export class QuizController {
   constructor(private readonly quizService: QuizService) {}
 
+  @Roles(Role.TEACHER, Role.ADMIN)
   @Post('/create')
   async createQuiz(
     @User() user: JwtPayload,
@@ -44,18 +45,20 @@ export class QuizController {
     }
   }
 
+  @Roles(Role.STUDENT, Role.TEACHER, Role.ADMIN)
   @UseGuards(JwtAuthGuard)
   @Get('/all')
   async getQuiz(@User() user: JwtPayload, @Res() res: Response) {
     try {
       const payload = await this.quizService.getByQuizUserId(user);
-      console.dir(payload, { depth: null, color: true });
+
       return res.status(HttpStatus.OK).json(payload);
     } catch (error) {
       return handleError(res, error);
     }
   }
 
+  @Roles(Role.TEACHER, Role.ADMIN)
   @Patch('/update')
   async updateQuiz(
     @User() user: JwtPayload,
@@ -70,7 +73,7 @@ export class QuizController {
       return handleError(res, error);
     }
   }
-
+  @Roles(Role.TEACHER, Role.ADMIN)
   @Delete('/delete')
   async deleteQuiz(
     @User() user: JwtPayload,
@@ -86,10 +89,5 @@ export class QuizController {
     } catch (error) {
       return handleError(res, error);
     }
-  }
-
-  @Get()
-  getAllQuizs() {
-    return this.quizService.findAll();
   }
 }

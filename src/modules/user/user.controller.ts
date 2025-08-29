@@ -12,6 +12,9 @@ import {
   Patch,
   Logger,
   UseGuards,
+  Delete,
+  Param,
+  ParseIntPipe,
 } from '@nestjs/common';
 import {
   // ApiBadRequestResponse,
@@ -24,21 +27,28 @@ import {
 } from '@nestjs/swagger';
 import { handleError } from 'src/utils/handleError';
 import { CreateUserDto } from './dto/createUser.dto';
-import { UserEntity } from './entities/user.entity';
+import { Role, UserEntity } from './entities/user.entity';
 import { UpdateUserDto } from './dto/updateUser.dto';
-import { ResetPasswordDto } from './dto/resetPassword.dto';
 import { Cookies } from 'src/decorators/cookie.decorator';
 import { AuthUserDto } from '../auth/dto/authUser.dto';
 import { TokenEntity } from '../auth/entities/token.entity';
 import { UserService } from './user.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { RolesGuard } from '../auth/roles.quard';
+import { Roles } from 'src/decorators/roles-auth.decorator';
+import { DeleteUserDto } from './dto/deleteUser.dto';
+import { User } from 'src/decorators/user.decorator';
+import { JwtPayload } from 'src/interfaces/jwt-payload.interface';
+import { ResetPasswordDto } from './dto/resetPassword.dto';
 
 @ApiTags('User CRUD')
 // @UseInterceptors(LoggingInterceptor)
-@Controller('user')
+@Controller(Role.USER)
 export class UserController {
   constructor(private readonly userService: UserService) {}
 
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Cоздание пользователя', operationId: '1' })
   @ApiExtraModels(UserEntity, TokenEntity, CreateUserDto)
   // @ApiResponse({
@@ -53,18 +63,12 @@ export class UserController {
   // @ApiBody({ type: RegistrationBodySchema })
   @Post('/registration')
   async registrationUser(@Body() userDto: CreateUserDto, @Res() res: Response) {
+    Logger.debug('reg', userDto);
+
     try {
       const payload = await this.userService.registrationUser(userDto);
       Logger.debug('reg', payload);
 
-      console.dir(payload, { depth: null });
-      res.cookie('refreshToken', payload.tokens.refreshToken, {
-        maxAge: 30 * 24 * 60 * 60 * 1000,
-        httpOnly: true,
-        sameSite: 'lax',
-        secure: false, // локально БЕЗ https должно быть false
-        path: '/', // чтобы /user/refresh видел куку
-      });
       return res
         .status(HttpStatus.OK)
         .json({ message: 'Congratulations, you can study', ...payload });
@@ -98,6 +102,109 @@ export class UserController {
     }
   }
 
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN)
+  // @ApiOperation({ summary: 'Получение всех пользователей', operationId: '1' })
+  @ApiExtraModels(UserEntity, TokenEntity, CreateUserDto)
+  @Get('/all')
+  async getAllUsers(@User() user: JwtPayload, @Res() res: Response) {
+    try {
+      const payload = await this.userService.getAllUsers(user);
+      Logger.debug('all', payload);
+
+      return res.status(HttpStatus.OK).json(payload);
+    } catch (error) {
+      return handleError(res, error);
+    }
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN)
+  // @ApiOperation({ summary: 'Удаление пользователя (АДМИН)', operationId: '1' })
+  @ApiExtraModels(UserEntity, TokenEntity, CreateUserDto)
+  @Delete('/delete')
+  async deleteUser(@Body() dto: DeleteUserDto, @Res() res: Response) {
+    try {
+      const payload = await this.userService.deleteUserById(dto);
+      Logger.debug('delete', payload);
+
+      return res.status(HttpStatus.OK).json(payload);
+    } catch (error) {
+      return handleError(res, error);
+    }
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.USER, Role.STUDENT, Role.TEACHER, Role.ADMIN) // @ApiOperation({ summary: 'Удаление пользователя (АДМИН)', operationId: '1' })
+  @ApiExtraModels(UserEntity, TokenEntity, CreateUserDto)
+  @Get('/me/stats')
+  async getUserStats(@User() user: JwtPayload, @Res() res: Response) {
+    try {
+      const payload = await this.userService.getUserStatsById(user.id);
+      Logger.debug('/me/stats', payload);
+
+      return res.status(HttpStatus.OK).json(payload);
+    } catch (error) {
+      return handleError(res, error);
+    }
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @ApiOperation({ summary: 'Смена пароля / верификация пользователя' })
+  @Roles(Role.USER, Role.ADMIN)
+  @Patch('/patch')
+  async userChangePassword(
+    @Body() resetPasswordDto: ResetPasswordDto,
+    @User() user: JwtPayload,
+    @Res() res: Response,
+  ) {
+    try {
+      const payload = await this.userService.changePasswordUser(
+        resetPasswordDto,
+        user,
+      );
+
+      if (payload === false) {
+        return res
+          .status(HttpStatus.BAD_REQUEST)
+          .json('Произошла ошибка попробуйте снова');
+      }
+
+      return res
+        .status(HttpStatus.OK)
+        .clearCookie('refreshToken')
+        .json({ message: 'Пароль успешно изменён' });
+    } catch (error) {
+      return handleError(res, error);
+    }
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @ApiOperation({ summary: 'Обновление данных пользователя' })
+  @Roles(Role.USER, Role.ADMIN)
+  @Patch(':id')
+  async userPatch(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() updateUserDto: UpdateUserDto,
+    @User() user: JwtPayload,
+    @Res() res: Response,
+  ) {
+    try {
+      const payload = await this.userService.updateUser(
+        updateUserDto,
+        user,
+        id,
+      );
+
+      return res
+        .status(HttpStatus.OK)
+        .clearCookie('refreshToken')
+        .json({ message: 'Пароль успешно изменён', ...payload });
+    } catch (error) {
+      return handleError(res, error);
+    }
+  }
+
   @ApiCookieAuth('refreshToken')
   @ApiOperation({ summary: 'Выход из аккаунта' })
   // @ApiResponse({ status: 200, type: LogoutResponseSchema })
@@ -109,6 +216,7 @@ export class UserController {
           .status(HttpStatus.UNAUTHORIZED)
           .json({ message: 'Вы не авторизованы' });
       }
+
       await this.userService.logout(token);
       return res
         .status(HttpStatus.OK)
@@ -143,55 +251,4 @@ export class UserController {
       return handleError(res, error);
     }
   }
-
-  @UseGuards(JwtAuthGuard)
-  @ApiOperation({ summary: 'Смена пароля' })
-  // @ApiResponse({ status: 200, type: updateUserResponseSchema })
-  @Patch('/patch')
-  async userPatch(@Body() updateUserDto: UpdateUserDto, @Res() res: Response) {
-    try {
-      const payload = await this.userService.updateUser(updateUserDto);
-
-      if (payload === false) {
-        return res
-          .status(HttpStatus.BAD_REQUEST)
-          .json('Произошла ошибка попробуйте снова');
-      }
-
-      return res
-        .status(HttpStatus.OK)
-        .clearCookie('refreshToken')
-        .json({ message: 'Пароль успешно изменён' });
-    } catch (error) {
-      return handleError(res, error);
-    }
-  }
-
-  @ApiCookieAuth('refreshToken')
-  @ApiOperation({ summary: 'Смена пароля' })
-  // @ApiResponse({ status: 200, type: resetUserPasswordResponseSchema })
-  @Patch('/reset')
-  async resetPassword(
-    @Body() resetPasswordDto: ResetPasswordDto,
-    @Res() res: Response,
-  ) {
-    try {
-      const payload =
-        await this.userService.resetUserPassword(resetPasswordDto);
-
-      if (payload === false) {
-        return res
-          .status(HttpStatus.BAD_REQUEST)
-          .json('Произошла ошибка попробуйте снова');
-      }
-
-      return res
-        .status(HttpStatus.OK)
-        .clearCookie('refreshToken')
-        .json({ message: 'Пароль успешно сброшен' });
-    } catch (error) {
-      return handleError(res, error);
-    }
-  }
-  //TODO : delete(user), patch(email)
 }

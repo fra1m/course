@@ -1,3 +1,5 @@
+//FIXME: перестать отдавать путь до файла курса, лучше получать «живую» ссылку с бэка по запросу.
+
 import { Response, Request } from 'express';
 import {
   BadRequestException,
@@ -39,6 +41,7 @@ import { stat } from 'node:fs/promises';
 
 import { basename } from 'path';
 import { UpdateCourseDto } from './dto/update-course.dto';
+import { Role } from '../user/entities/user.entity';
 
 @UseGuards(JwtAuthGuard, RolesGuard)
 @ApiTags('courses')
@@ -46,7 +49,7 @@ import { UpdateCourseDto } from './dto/update-course.dto';
 export class CoursesController {
   constructor(private readonly coursesService: CoursesService) {}
 
-  @Roles('admin')
+  @Roles(Role.TEACHER, Role.ADMIN)
   @Post('/create')
   @UseInterceptors(
     FileInterceptor('file', {
@@ -85,7 +88,7 @@ export class CoursesController {
     }
   }
 
-  @Roles('admin')
+  @Roles(Role.TEACHER, Role.ADMIN)
   @Patch('/update')
   @ApiConsumes('/update')
   async updateCourse(
@@ -102,7 +105,7 @@ export class CoursesController {
     }
   }
 
-  @Roles('admin')
+  @Roles(Role.TEACHER, Role.ADMIN)
   @Delete('/delete')
   @ApiConsumes('/delete')
   async deleteCourse(
@@ -121,7 +124,7 @@ export class CoursesController {
     }
   }
 
-  @Roles('admin')
+  @Roles(Role.STUDENT, Role.TEACHER, Role.ADMIN)
   @Get('getAllCourses')
   @ApiOkResponse({ description: 'Отдаёт курсы' })
   async getAllCourses(@User() user: JwtPayload, @Res() res: Response) {
@@ -134,7 +137,7 @@ export class CoursesController {
     }
   }
 
-  @Roles('admin')
+  @Roles(Role.STUDENT, Role.TEACHER, Role.ADMIN)
   @Get(':id/file')
   async streamCoursePdf(
     @Param('id', ParseIntPipe) id: number,
