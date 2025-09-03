@@ -4,7 +4,6 @@ import {
   HttpStatus,
   Injectable,
 } from '@nestjs/common';
-import * as fs from 'fs';
 import { LessonEntity } from './entities/lesson.entity';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -26,6 +25,20 @@ export class LessonsService {
     private configService: ConfigService,
   ) {}
 
+  async countLessonsWithCourseId(courseId: number): Promise<number> {
+    return this.lessonRepository
+      .createQueryBuilder('l')
+      .innerJoin('l.courseId', 'c', 'c.id = :courseId', { courseId })
+      .getCount();
+  }
+
+  async countLessonsWithQuizId(courseId: number): Promise<number> {
+    return this.lessonRepository
+      .createQueryBuilder('l')
+      .innerJoin('l.courseId', 'c', 'c.id = :courseId', { courseId })
+      .where('l.quizId IS NOT NULL') // если у тебя другая схема — поправь where
+      .getCount();
+  }
   /**
    * Извлекает страницы из PDF-файла (нумерация с 1!).
    * @param body Дто для создания
@@ -44,7 +57,7 @@ export class LessonsService {
       filePath,
       pages: body.pages,
       quizId: quiz ?? undefined,
-      courseId: course, //TODO: переименовать в courseId
+      courseId: course,
     });
 
     return lesson;

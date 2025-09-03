@@ -73,6 +73,7 @@ export class QuizController {
       return handleError(res, error);
     }
   }
+
   @Roles(Role.TEACHER, Role.ADMIN)
   @Delete('/delete')
   async deleteQuiz(

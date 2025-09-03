@@ -45,6 +45,7 @@ export class QuizService {
     }));
   }
 
+  // TODO сделать отдачу квизов для студента, сделать добавлегние студента к списку студентов курса (сейчас у студентов возращается пустой массив кивзов), нужно чтобы квизы (скорее всего уроки) и курсы сохранялись в специализацию, чтобы потом подтягивать все через сущност ьспециализации
   async getByQuizUserId(userPayload: JwtPayload) {
     const quizzes = await this.quizRepository
       .createQueryBuilder('quiz')
@@ -106,5 +107,12 @@ export class QuizService {
     await this.quizRepository.remove(quiz); // Фактическое удаление
 
     return { message: `Тест с ID ${deleteQuizDto.id} успешно удалён.` };
+  }
+
+  async countQuizzesBySpecialization(specId: number): Promise<number> {
+    return this.quizRepository
+      .createQueryBuilder('q')
+      .innerJoin('q.specialization', 's', 's.id = :specId', { specId })
+      .getCount();
   }
 }

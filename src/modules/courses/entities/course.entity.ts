@@ -6,11 +6,13 @@ import {
   ManyToMany,
   ManyToOne,
   OneToMany,
+  JoinColumn,
 } from 'typeorm';
 import { ApiHideProperty, ApiProperty } from '@nestjs/swagger';
 
 import { UserEntity } from 'src/modules/user/entities/user.entity';
 import { LessonEntity } from 'src/modules/lessons/entities/lesson.entity';
+import { SpecializationEntity } from 'src/modules/specialization/entities/specialization.entity';
 
 @Entity({ name: 'courses' })
 export class CourseEntity extends BaseEntity {
@@ -52,6 +54,13 @@ export class CourseEntity extends BaseEntity {
   })
   @ManyToMany(() => UserEntity, (user) => user.enrolledCourses)
   students?: UserEntity[];
+
+  @ManyToOne(() => SpecializationEntity, (s) => s.courses, {
+    nullable: true,
+    onDelete: 'SET NULL',
+  })
+  @JoinColumn({ name: 'specialization_id' })
+  specialization?: SpecializationEntity | null;
 
   @ApiHideProperty()
   @Column({ nullable: false })

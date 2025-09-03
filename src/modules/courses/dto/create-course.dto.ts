@@ -1,5 +1,6 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty, IsString } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
+import { IsInt, IsNotEmpty, IsOptional, IsString, Min } from 'class-validator';
 
 export class CreateCourseDto {
   @ApiProperty({ example: 'Основы TypeScript', description: 'Название курса' })
@@ -14,4 +15,14 @@ export class CreateCourseDto {
   @IsString()
   @IsNotEmpty()
   description: string;
+
+  @ApiPropertyOptional({
+    example: 3,
+    description: 'ID специализации (опционально)',
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  specializationId?: number;
 }

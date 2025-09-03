@@ -1,7 +1,3 @@
-// TODO: Добавить сервис PDF для чтения и преобразование в HTML дя фронта
-// TODO: npm install pdf-parse
-// TODO: npm install --save-dev @types/pdf-parse
-
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ConfigService } from '@nestjs/config';

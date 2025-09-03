@@ -1,28 +1,21 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
-
 import { Response, Request } from 'express';
 import {
   Controller,
   Get,
   Post,
   Body,
-  Patch,
   Param,
-  Delete,
   HttpStatus,
   UseGuards,
   Res,
-  Query,
   Req,
 } from '@nestjs/common';
 import { LessonsService } from './lessons.service';
 import { CreateLessonDto } from './dto/create-lesson.dto';
-import { UpdateLessonDto } from './dto/update-lesson.dto';
 import { Roles } from 'src/decorators/roles-auth.decorator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.quard';
 import { handleError } from 'src/utils/handleError';
-import { basename } from 'path';
 import { randomInt } from 'crypto';
 import { Role } from '../user/entities/user.entity';
 
@@ -70,13 +63,15 @@ export class LessonsController {
     try {
       const items = await this.lessonsService.getAllLessonsLite();
 
+      console.log(items);
+
       const payload = items.map((l) =>
         l.quizId
           ? {
               id: l.id,
               title: l.title,
               pages: l.pages,
-              testId: l.quizId.id,
+              testId: l.quizId,
               courseId: l.courseId.id,
             }
           : {

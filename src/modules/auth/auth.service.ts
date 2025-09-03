@@ -10,7 +10,7 @@ import * as bcrypt from 'bcryptjs';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
-import { Role, UserEntity } from '../user/entities/user.entity';
+import { UserEntity } from '../user/entities/user.entity';
 import { AuthUserDto } from './dto/authUser.dto';
 import { TokenEntity } from './entities/token.entity';
 import { JwtPayload } from 'src/interfaces/jwt-payload.interface';
@@ -32,6 +32,7 @@ export class AuthService {
       email: user.email,
       name: user.name,
       role: user.role,
+      specializationId: user.specialization?.id ?? null,
     };
 
     const accessToken = await this.jwtService.signAsync(payload, {

@@ -1,5 +1,3 @@
-//TODO: возможно реализовать blacklist / token revocation
-
 import {
   CanActivate,
   ExecutionContext,

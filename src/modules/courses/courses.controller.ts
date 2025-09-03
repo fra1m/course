@@ -129,7 +129,7 @@ export class CoursesController {
   @ApiOkResponse({ description: 'Отдаёт курсы' })
   async getAllCourses(@User() user: JwtPayload, @Res() res: Response) {
     try {
-      const payload = await this.coursesService.getAllCoursesByTeacherId(user);
+      const payload = await this.coursesService.listForUser(user);
 
       return res.status(HttpStatus.OK).json(payload);
     } catch (error) {

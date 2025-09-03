@@ -7,12 +7,16 @@ import {
   JoinTable,
   ManyToMany,
   OneToOne,
+  JoinColumn,
+  ManyToOne,
 } from 'typeorm';
 import { ApiHideProperty, ApiProperty } from '@nestjs/swagger';
 import { TokenEntity } from 'src/modules/auth/entities/token.entity';
 import { CourseEntity } from 'src/modules/courses/entities/course.entity';
 import { QuizEntity } from 'src/modules/quiz/entities/quiz.entity';
 import { UserStatsEntity } from './user-stats.entity';
+import { SpecializationEntity } from 'src/modules/specialization/entities/specialization.entity';
+import { QuizAttemptEntity } from 'src/modules/analytics/entities/quiz-attempt.entity';
 
 export enum Role {
   USER = 'user',
@@ -35,6 +39,11 @@ export class UserEntity extends BaseEntity {
     onDelete: 'CASCADE',
   })
   token: TokenEntity[];
+
+  @OneToMany(() => QuizAttemptEntity, (att) => att.user, {
+    onDelete: 'CASCADE',
+  })
+  attemt: QuizAttemptEntity | null;
 
   @ApiProperty({
     example: `user_${Math.random().toString(36).substring(7)}@example.com`,
@@ -78,6 +87,13 @@ export class UserEntity extends BaseEntity {
   @ApiHideProperty() //TODO: разберись как в свагере отображать
   @OneToMany(() => CourseEntity, (course) => course.teacher)
   authoredCourses: CourseEntity[];
+
+  @ManyToOne(() => SpecializationEntity, (s) => s.students, {
+    nullable: true,
+    onDelete: 'SET NULL',
+  })
+  @JoinColumn({ name: 'specialization_id' })
+  specialization?: SpecializationEntity | null;
 
   @ApiProperty({
     example: [QuizEntity],

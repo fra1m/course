@@ -9,6 +9,8 @@ import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { CoursesModule } from './modules/courses/courses.module';
 import { HealthModule } from './modules/health/health.module';
 import { MulterModule } from '@nestjs/platform-express';
+import { SpecializationModule } from './modules/specialization/specialization.module';
+import { RealtimeModule } from './modules/realtime/realtime.module';
 
 @Module({
   imports: [
@@ -49,6 +51,8 @@ import { MulterModule } from '@nestjs/platform-express';
     QuizModule,
     UserModule,
     HealthModule,
+    SpecializationModule,
+    RealtimeModule,
   ],
   controllers: [],
   providers: [],

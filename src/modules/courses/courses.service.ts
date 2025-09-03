@@ -1,4 +1,6 @@
 import {
+  BadRequestException,
+  ForbiddenException,
   HttpException,
   HttpStatus,
   Injectable,
@@ -16,6 +18,9 @@ import { UpdateCourseDto } from './dto/update-course.dto';
 import { DeleteCourseDto } from './dto/delete-course.dto';
 import { resolve } from 'path';
 import { promises as fs } from 'node:fs';
+import { Role } from '../user/entities/user.entity';
+import { SpecializationService } from '../specialization/specialization.service';
+import { SpecializationEntity } from '../specialization/entities/specialization.entity';
 
 @Injectable()
 export class CoursesService {
@@ -23,6 +28,7 @@ export class CoursesService {
     @InjectRepository(CourseEntity)
     private courseRepository: Repository<CourseEntity>,
     private userService: UserService,
+    private specializationService: SpecializationService,
   ) {}
   private readonly logger = new Logger(CoursesService.name);
 
@@ -42,6 +48,23 @@ export class CoursesService {
     return abs;
   }
 
+  private mapCourse(c: CourseEntity) {
+    return {
+      id: c.id,
+      title: c.title,
+      description: c.description,
+      teacherId: c.teacher?.id ?? null,
+      filePath: c.filePath,
+      specialization: c.specialization
+        ? {
+            id: c.specialization.id,
+            slug: c.specialization.slug,
+            title: c.specialization.title,
+          }
+        : null,
+    };
+  }
+
   async getCourseFilePathById(id: number): Promise<string> {
     const course = await this.courseRepository.findOne({ where: { id } });
     if (!course || !course.filePath) {
@@ -54,13 +77,20 @@ export class CoursesService {
   async getCourseById(id: number) {
     const course = await this.courseRepository.findOne({
       where: { id },
-      relations: ['teacher'],
+      relations: ['teacher', 'specialization'],
     });
     if (!course) {
       throw new HttpException('Курс не существует', HttpStatus.BAD_REQUEST);
     }
 
     return course;
+  }
+
+  async countQuizzesBySpecialization(specId: number): Promise<number> {
+    return this.courseRepository
+      .createQueryBuilder('q')
+      .innerJoin('q.specialization', 's', 's.id = :specId', { specId })
+      .getCount();
   }
 
   async createCours(
@@ -70,77 +100,130 @@ export class CoursesService {
   ) {
     const user = await this.userService.getUserById(userPayload.id);
 
+    let specialization: SpecializationEntity | null = null;
+    if (dto.specializationId !== undefined) {
+      const specId = dto.specializationId;
+      if (!Number.isFinite(specId) || specId <= 0) {
+        throw new BadRequestException('Некорректный specializationId');
+      }
+      specialization =
+        (await this.specializationService.findSpecById(specId)) ?? null;
+      if (!specialization) {
+        throw new BadRequestException('Специализация не найдена');
+      }
+    }
+
     const course = await this.courseRepository.save({
       ...dto,
       teacher: user,
       filePath,
+      specialization: specialization ?? null,
     });
-    // Возвращаем «плоский» объект без teacher
-    return {
-      id: course.id,
-      title: course.title,
-      description: course.description,
-      teacherId: user.id,
-      filePath: course.filePath,
-    };
+
+    return this.mapCourse(course);
   }
 
   async getAllCoursesByTeacherId(userPayload: JwtPayload) {
-    const courses = await this.courseRepository
-      .createQueryBuilder('c')
-      .addSelect('c.id', 'id')
-      .addSelect('c.title', 'title')
-      .addSelect('c.description', 'description')
-      .addSelect('c.teacherId', 'teacherId')
-      .where('c.teacherId = :tid', { tid: userPayload.id })
-      .orderBy('c.id', 'DESC')
-      .getRawMany<{
-        id: number;
-        title: string;
-        description: string;
-        teacherId: number;
-      }>();
+    const isTeacher = userPayload.role === Role.TEACHER;
+    if (!isTeacher) {
+      throw new ForbiddenException('Недостаточно прав');
+    }
+    const list = await this.courseRepository.find({
+      where: { teacher: { id: userPayload.id } },
+      relations: ['teacher', 'specialization'],
+      order: { id: 'DESC' },
+    });
+    return list.map((c) => this.mapCourse(c));
+  }
 
-    return courses;
+  async listByUserSpecialization(userPayload: JwtPayload) {
+    const specId = userPayload.specializationId ?? null;
+    if (!specId) return;
+
+    const list = await this.courseRepository.find({
+      where: { specialization: { id: specId } },
+      relations: ['teacher', 'specialization'],
+      order: { id: 'DESC' },
+    });
+    return list.map((c) => this.mapCourse(c));
+  }
+
+  async listAllAdmin(
+    userPayload: JwtPayload,
+    opts?: { specializationId?: number },
+  ) {
+    const isAdmin = userPayload.role === Role.ADMIN;
+    if (!isAdmin) {
+      throw new ForbiddenException('Недостаточно прав');
+    }
+
+    const where =
+      opts?.specializationId && Number.isFinite(opts.specializationId)
+        ? { specialization: { id: Number(opts.specializationId) } }
+        : {};
+    const list = await this.courseRepository.find({
+      where,
+      relations: ['teacher', 'specialization'],
+      order: { id: 'DESC' },
+    });
+    return list.map((c) => this.mapCourse(c));
+  }
+
+  async listForUser(user: JwtPayload, opts?: { specializationId?: number }) {
+    if (user.role === Role.STUDENT) {
+      return await this.listByUserSpecialization(user);
+    }
+    if (user.role === Role.TEACHER) {
+      return await this.getAllCoursesByTeacherId(user);
+    }
+    // admin
+    return this.listAllAdmin(user, {
+      specializationId: opts?.specializationId,
+    });
   }
 
   async updateCours(dto: UpdateCourseDto, userPayload: JwtPayload) {
     const course = await this.getCourseById(dto.id);
 
-    if (!course || course.teacher.id !== userPayload.id) {
-      throw new HttpException(
-        'Вы не можете редактировать эот курс',
-        HttpStatus.BAD_REQUEST,
-      );
+    const isOwner = course.teacher?.id === userPayload.id;
+    const isAdmin = userPayload.role === Role.ADMIN;
+
+    if (!isOwner && !isAdmin) {
+      throw new ForbiddenException('Вы не можете редактировать этот курс');
     }
 
-    if (dto.description) course.description = dto.description;
-    if (dto.title) course.title = dto.title;
+    if (dto.title !== undefined) course.title = dto.title;
+    if (dto.description !== undefined) course.description = dto.description;
 
-    const updatedCourse = await this.courseRepository.save(course);
+    // разрешим администратору менять специализацию курса
+    if (dto.specializationId !== undefined) {
+      if (!isAdmin) {
+        throw new ForbiddenException(
+          'Недостаточно прав для смены специализации курса',
+        );
+      }
+      const specId = dto.specializationId;
+      if (!Number.isFinite(specId) || specId <= 0) {
+        throw new BadRequestException('Некорректный айди специальности');
+      }
+      const spec =
+        (await this.specializationService.findSpecById(specId)) ?? null;
+      if (!spec) throw new BadRequestException('Специализация не найдена');
+      course.specialization = spec;
+    }
 
-    return {
-      id: updatedCourse.id,
-      title: updatedCourse.title,
-      description: updatedCourse.description,
-      teacherId: userPayload.id,
-      filePath: updatedCourse.filePath,
-    };
+    const updated = await this.courseRepository.save(course);
+    return this.mapCourse(updated);
   }
 
   async deleteCourse(dto: DeleteCourseDto, userPayload: JwtPayload) {
+    const isAdmin = userPayload.role === Role.ADMIN;
+
     const course = await this.courseRepository.findOne({
-      where: {
-        id: dto.id,
-        teacher: { id: userPayload.id },
-      },
-      relations: [
-        'teacher',
-        'students',
-        'students',
-        'lessons',
-        'lessons.quizId',
-      ],
+      where: isAdmin
+        ? { id: dto.id }
+        : { id: dto.id, teacher: { id: userPayload.id } },
+      relations: ['teacher', 'students', 'lessons', 'lessons.quizId'],
     });
 
     if (!course) {

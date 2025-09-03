@@ -181,7 +181,7 @@ export class UserController {
 
   @UseGuards(JwtAuthGuard, RolesGuard)
   @ApiOperation({ summary: 'Обновление данных пользователя' })
-  @Roles(Role.USER, Role.ADMIN)
+  @Roles(Role.STUDENT, Role.TEACHER, Role.ADMIN)
   @Patch(':id')
   async userPatch(
     @Param('id', ParseIntPipe) id: number,

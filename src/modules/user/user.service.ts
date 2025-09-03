@@ -20,6 +20,8 @@ import { DeleteUserDto } from './dto/deleteUser.dto';
 import { UserListItemDto } from './dto/userListItem.dto';
 import { JwtPayload } from 'src/interfaces/jwt-payload.interface';
 import { UserStatsEntity } from './entities/user-stats.entity';
+import { SpecializationService } from '../specialization/specialization.service';
+import { NotificationsGateway } from '../realtime/notifications.gateway';
 
 @Injectable()
 export class UserService {
@@ -27,8 +29,12 @@ export class UserService {
     @InjectRepository(UserEntity)
     private userRepository: Repository<UserEntity>,
     @InjectRepository(UserStatsEntity)
-    private userStatsRepository: Repository<UserStatsEntity>,
+    private useruserStatsRepositorysitory: Repository<UserStatsEntity>,
+
+    private specializationService: SpecializationService,
     private authService: AuthService,
+    private readonly notifications: NotificationsGateway,
+
     // private configService: ConfigService,
   ) {}
 
@@ -52,7 +58,7 @@ export class UserService {
     // Если у password стоит select:false — переключитесь на QB и .addSelect('u.password')
     const users = await this.userRepository.find({
       select: ['id', 'name', 'role', 'email', 'password', 'stats', 'token'],
-      relations: ['stats', 'token'],
+      relations: ['stats', 'token', 'specialization'],
       order: { id: 'ASC' },
     });
 
@@ -70,6 +76,7 @@ export class UserService {
           email: emailForRole,
           password: u.password,
           stats: u.stats || null,
+          specialization: u.specialization,
         };
       }
 
@@ -80,6 +87,7 @@ export class UserService {
         role: u.role,
         email: emailForRole,
         stats: u.stats || null,
+        specialization: u.specialization,
       };
     });
   }
@@ -130,7 +138,7 @@ export class UserService {
 
     const user = await this.userRepository.findOne({
       where: { email },
-      relations: ['stats'],
+      relations: ['stats', 'specialization'],
     });
 
     return user;
@@ -154,7 +162,7 @@ export class UserService {
   async getUserById(userId: number) {
     const user = await this.userRepository.findOne({
       where: { id: userId },
-      relations: ['stats'],
+      relations: ['stats', 'specialization'],
     });
 
     console.log(user);
@@ -183,7 +191,7 @@ export class UserService {
 
     const user$ = await this.userRepository.save({
       ...createUserDto,
-      stats: this.userStatsRepository.create({}), // всё по дефолту = 0/null
+      stats: this.useruserStatsRepositorysitory.create({}), // всё по дефолту = 0/null
     });
 
     const { password: _, ...user } = user$;
@@ -209,7 +217,6 @@ export class UserService {
       (await this.authService.auth(authUserDto, candidate));
 
     const tokens = await this.authService.generateToken(candidate);
-    console.log('ASDASDASDASDASD', user ?? candidate);
     await this.authService.saveToken(user ?? candidate, tokens.refreshToken);
 
     return { user, tokens };
@@ -239,9 +246,7 @@ export class UserService {
       );
     }
 
-    const user = await this.userRepository.findOne({
-      where: { id: userData.id },
-    });
+    const user = await this.getUserById(userData.id);
 
     if (!user) {
       throw new HttpException(
@@ -297,7 +302,10 @@ export class UserService {
     }
 
     // Нечего обновлять? //TODO добавить обновление имени/email и тд
-    if (updateUserDto.role === undefined) {
+    if (
+      updateUserDto.role === undefined &&
+      updateUserDto.specializationId === undefined
+    ) {
       throw new BadRequestException('Нет полей для обновления');
     }
 
@@ -345,7 +353,74 @@ export class UserService {
     //   target.password = await this.hashPassword(newPass);
     // }
 
+    const prevSpecId = user.specialization?.id ?? null;
+
+    if (updateUserDto.specializationId !== undefined) {
+      if (!isAdmin)
+        throw new ForbiddenException(
+          'Недостаточно прав для смены специализации',
+        );
+
+      const spec = await this.specializationService.findSpecById(
+        updateUserDto.specializationId,
+      );
+      if (!spec) throw new BadRequestException('Специализация не найдена');
+      user.specialization = spec;
+    }
+
     await this.userRepository.save(user);
+
+    const newSpecId = user.specialization?.id ?? null;
+    if (prevSpecId !== newSpecId) {
+      this.notifications.notifyUserSpecializationChanged(user.id, newSpecId);
+    }
+
     return this.toListItem(user);
+  }
+
+  /**
+   * Обновить агрегаты статистики пользователя (upsert).
+   * averageScore — число 0..100 (мы храним как numeric -> string).
+   */
+  async applyQuizStats(
+    user: UserEntity,
+    patch: {
+      quizzesTotal: number;
+      quizzesPassed: number;
+      averageScore: number;
+      lessonsTotal: number;
+      lessonsCompleted: number;
+      lastActiveAt?: Date;
+    },
+  ) {
+    const stats = await this.getUserStatsById(user.id);
+
+    if (!stats) {
+      user.stats = this.useruserStatsRepositorysitory.create({});
+    }
+
+    stats.quizzesTotal = patch.quizzesTotal;
+    stats.quizzesPassed = patch.quizzesPassed;
+    stats.lessonsTotal = patch.lessonsTotal;
+    stats.lessonsCompleted = patch.lessonsCompleted;
+
+    const avg = Math.min(100, Math.max(0, Number(patch.averageScore) || 0));
+    stats.averageScore = String(Math.round(avg * 100) / 100);
+
+    if (patch.lastActiveAt) stats.lastActiveAt = patch.lastActiveAt;
+
+    const stats$ = await this.useruserStatsRepositorysitory.save(stats);
+
+    return {
+      quizzesTotal: stats$.quizzesTotal,
+      quizzesPassed: stats$.quizzesPassed,
+      averageScore: Number(stats$.averageScore),
+      coursesEnrolled: stats$.coursesEnrolled,
+      coursesAuthored: stats$.coursesAuthored,
+      lessonsTotal: stats$.lessonsTotal,
+      lessonsCompleted: stats$.lessonsCompleted,
+      streakDays: stats$.streakDays,
+      lastActiveAt: stats$.lastActiveAt?.toISOString() ?? null,
+    };
   }
 }
