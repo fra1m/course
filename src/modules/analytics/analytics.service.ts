@@ -1,26 +1,123 @@
+// src/modules/analytics/analytics.service.ts
 import { Injectable } from '@nestjs/common';
-import { CreateAnalyticsDto } from './dto/create-analytics.dto';
-import { UpdateAnalyticsDto } from './dto/update-analytics.dto';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { QuizAttemptEntity } from './entities/quiz-attempt.entity';
+import { UserService } from 'src/modules/user/user.service';
+import { SubmitQuizDto } from './dto/create-analytics.dto';
+import { JwtPayload } from 'src/interfaces/jwt-payload.interface';
+import { LessonsService } from '../lessons/lessons.service';
 
 @Injectable()
 export class AnalyticsService {
-  create(createAnalyticsDto: CreateAnalyticsDto) {
-    return 'This action adds a new analytics';
+  constructor(
+    @InjectRepository(QuizAttemptEntity)
+    private readonly attemptsRepository: Repository<QuizAttemptEntity>,
+    private readonly userService: UserService,
+    private readonly lessonsService: LessonsService,
+  ) {}
+
+  private get passingScore(): number {
+    const raw = 70; //FIXME вынести в evn
+    const n = Number(raw);
+    return Number.isFinite(n) && n >= 0 && n <= 100 ? n : 70;
   }
 
-  findAll() {
-    return `This action returns all analytics`;
-  }
+  async submitQuizAttempt(userJwt: JwtPayload, dto: SubmitQuizDto) {
+    // 1) считаем балл/прошёл
+    const total = Math.max(1, dto.questionsTotal);
+    const correct = Math.min(total, Math.max(0, dto.correctCount));
+    const score = Math.round((correct / total) * 100);
+    const passed = score >= this.passingScore;
 
-  findOne(id: number) {
-    return `This action returns a #${id} analytics`;
-  }
+    const user = await this.userService.getUserById(userJwt.id);
 
-  update(id: number, updateAnalyticsDto: UpdateAnalyticsDto) {
-    return `This action updates a #${id} analytics`;
-  }
+    // 2) upsert попытки на (userId, quizId)
+    let attempt = await this.attemptsRepository.findOne({
+      where: { user, quizId: dto.quizId },
+    });
 
-  remove(id: number) {
-    return `This action removes a #${id} analytics`;
+    if (!attempt) {
+      attempt = this.attemptsRepository.create({
+        user,
+        quizId: dto.quizId,
+        lessonId: dto.lessonId,
+        courseId: dto.courseId,
+        questionsTotal: total,
+        correctCount: correct,
+        score,
+        passed,
+      });
+    } else {
+      attempt.lessonId = dto.lessonId;
+      attempt.courseId = dto.courseId;
+      attempt.questionsTotal = total;
+      attempt.correctCount = correct;
+      attempt.score = score;
+      attempt.passed = passed;
+    }
+    await this.attemptsRepository.save(attempt);
+
+    // 3) агрегаты по ВСЕМ попыткам пользователя (analytics владеет attempts)
+    const [agg] = await this.attemptsRepository
+      .createQueryBuilder('a')
+      .select('COUNT(*) FILTER (WHERE a.user.id = :uid)', 'cntAll')
+      .addSelect(
+        'COUNT(*) FILTER (WHERE a.user.id = :uid AND a.passed = true)',
+        'cntPassed',
+      )
+      .addSelect(
+        'COALESCE(AVG(a.score) FILTER (WHERE a.user.id = :uid), 0)',
+        'avgScore',
+      )
+      .addSelect('COUNT(DISTINCT a.lessonId)::int ', 'lessonsTotal')
+      .addSelect(
+        'COUNT(DISTINCT CASE WHEN a.passed = true THEN a.lessonId END)::int ',
+        'lessonsCompleted',
+      )
+      .where('a.user.id = :uid', { uid: user.id })
+      .getRawMany<{
+        cntAll: string;
+        cntPassed: string;
+        avgScore: string;
+        lessonsTotal: string;
+        lessonsCompleted: string;
+      }>();
+
+    const quizzesPassed = Number(agg?.cntPassed ?? 0);
+    const averageScore = Number(agg?.avgScore ?? 0);
+    const lessonsCompleted = Number(agg?.lessonsCompleted ?? 0);
+
+    const lessonsTotal = await this.lessonsService.countLessonsWithCourseId(
+      dto.courseId,
+    );
+
+    const quizzesTotal = await this.lessonsService.countLessonsWithQuizId(
+      dto.courseId,
+    );
+
+    console.log('lessonsTotal', lessonsTotal);
+
+    // 4) отдадим эти агрегаты в UserService (он уже сам upsert-нит user_stats)
+    const stats = await this.userService.applyQuizStats(user, {
+      quizzesTotal,
+      quizzesPassed,
+      averageScore,
+      lessonsTotal,
+      lessonsCompleted,
+      lastActiveAt: new Date(),
+    });
+
+    return {
+      attempt: {
+        quizId: attempt.quizId,
+        score: attempt.score,
+        passed: attempt.passed,
+        correctCount: attempt.correctCount,
+        questionsTotal: attempt.questionsTotal,
+        updatedAt: attempt.updatedAt,
+      },
+      stats,
+    };
   }
 }

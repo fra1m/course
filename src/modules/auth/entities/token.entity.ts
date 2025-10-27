@@ -28,7 +28,8 @@ export class TokenEntity extends BaseEntity {
     description: 'ID пользователя',
   })
   @ManyToOne(() => UserEntity, (user) => user.token, {
-    cascade: true,
+    onDelete: 'CASCADE',
+    nullable: false,
   })
   @JoinColumn({ name: 'userId' })
   userId: UserEntity;

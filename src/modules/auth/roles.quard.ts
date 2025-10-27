@@ -41,7 +41,7 @@ export class RolesGuard implements CanActivate {
     const [bearer, token] = authHeader.split(' ');
 
     if (bearer !== 'Bearer' || !token) {
-      throw new UnauthorizedException('Неверный формат токена');
+      throw new UnauthorizedException('Вам необходимо авторизоваться');
     }
 
     try {
@@ -63,7 +63,7 @@ export class RolesGuard implements CanActivate {
       // if (e.name === 'TokenExpiredError') {
       //   throw new UnauthorizedException('Токен истёк');
       // }
-
+      console.log('UNATARIZED');
       throw new HttpException('Доступ запрещён', HttpStatus.FORBIDDEN);
     }
   }

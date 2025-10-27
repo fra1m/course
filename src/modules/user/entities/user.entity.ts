@@ -6,10 +6,17 @@ import {
   OneToMany,
   JoinTable,
   ManyToMany,
+  OneToOne,
+  JoinColumn,
+  ManyToOne,
 } from 'typeorm';
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiHideProperty, ApiProperty } from '@nestjs/swagger';
 import { TokenEntity } from 'src/modules/auth/entities/token.entity';
 import { CourseEntity } from 'src/modules/courses/entities/course.entity';
+import { QuizEntity } from 'src/modules/quiz/entities/quiz.entity';
+import { UserStatsEntity } from './user-stats.entity';
+import { SpecializationEntity } from 'src/modules/specialization/entities/specialization.entity';
+import { QuizAttemptEntity } from 'src/modules/analytics/entities/quiz-attempt.entity';
 
 export enum Role {
   USER = 'user',
@@ -28,9 +35,15 @@ export class UserEntity extends BaseEntity {
     example: [TokenEntity],
     description: 'Массив токенов пользователя',
   })
-  @OneToMany(() => TokenEntity, (token) => token.userId)
-  // @JoinColumn({ name: 'tokenId' })
+  @OneToMany(() => TokenEntity, (token) => token.userId, {
+    onDelete: 'CASCADE',
+  })
   token: TokenEntity[];
+
+  @OneToMany(() => QuizAttemptEntity, (att) => att.user, {
+    onDelete: 'CASCADE',
+  })
+  attemt: QuizAttemptEntity | null;
 
   @ApiProperty({
     example: `user_${Math.random().toString(36).substring(7)}@example.com`,
@@ -60,39 +73,45 @@ export class UserEntity extends BaseEntity {
     example: Role.USER,
     description: 'Роль пользователя',
   })
-  @Column({ type: 'enum', enum: Role, default: Role.USER })
+  @Column({ type: 'enum', enum: Role, default: Role.ADMIN })
   role: Role;
 
-  @ApiProperty({
-    type: () => [CourseEntity],
-    description: 'Курсы, на которые пользователь подписан (студент)',
-  })
-  @ManyToMany(() => CourseEntity, (course) => course.students, {
-    cascade: true,
-  })
+  @ManyToMany(() => CourseEntity, (course) => course.students)
   @JoinTable({
     name: 'user_courses',
-    joinColumn: { name: 'user_id', referencedColumnName: 'id' },
-    inverseJoinColumn: { name: 'course_id', referencedColumnName: 'id' },
+    joinColumns: [{ name: 'user_id', referencedColumnName: 'id' }],
+    inverseJoinColumns: [{ name: 'course_id', referencedColumnName: 'id' }],
   })
   enrolledCourses: CourseEntity[];
 
-  @ApiProperty({
-    type: () => [CourseEntity],
-    description: 'Курсы, созданные пользователем (преподаватель)',
-  })
+  @ApiHideProperty() //TODO: разберись как в свагере отображать
   @OneToMany(() => CourseEntity, (course) => course.teacher)
   authoredCourses: CourseEntity[];
+
+  @ManyToOne(() => SpecializationEntity, (s) => s.students, {
+    nullable: true,
+    onDelete: 'SET NULL',
+  })
+  @JoinColumn({ name: 'specialization_id' })
+  specialization?: SpecializationEntity | null;
+
+  @ApiProperty({
+    example: [QuizEntity],
+    description: 'Массив токенов пользователя',
+  })
+  @OneToMany(() => QuizEntity, (quiz) => quiz.user, {
+    cascade: true,
+    onDelete: 'CASCADE',
+  })
+  quizzes: QuizEntity[];
+
+  @OneToOne(() => UserStatsEntity, (stats) => stats.user, {
+    cascade: ['insert', 'update'], // создаём/обновляем stats вместе с пользователем
+    eager: true, // автоматически подтягивать stats (опционально)
+  })
+  @ApiProperty({
+    type: () => UserStatsEntity,
+    description: 'Статистика пользователя',
+  })
+  stats: UserStatsEntity;
 }
-
-// TODO: в дальнейшем мб надо
-// @ApiProperty({ example: false, description: 'Статус автивации по почте' })
-// @Column({ default: false })
-// isActivated: boolean;
-
-// @ApiProperty({
-//   example: '97541ee5-795d-4a2d-a04b-4f7473c6822f',
-//   description: 'Ссылка подтверждения почты',
-// })
-// @Column()
-// activationLink: string;

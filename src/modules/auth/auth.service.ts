@@ -32,6 +32,7 @@ export class AuthService {
       email: user.email,
       name: user.name,
       role: user.role,
+      specializationId: user.specialization?.id ?? null,
     };
 
     const accessToken = await this.jwtService.signAsync(payload, {
@@ -121,22 +122,34 @@ export class AuthService {
     return user;
   }
 
+  private looksLikeBcrypt(hash?: string) {
+    return !!hash && hash.startsWith('$2') && hash.length > 30;
+  }
+
   async newHashPassword(
     user: UserEntity,
     newPassword: string,
     currentPassword?: string,
   ): Promise<string> {
+    const stored = user.password ?? '';
+    const isHash = this.looksLikeBcrypt(stored);
+
+    // 1) Проверяем текущий пароль, если он передан
     if (currentPassword) {
-      const isCurrentValid = await bcrypt.compare(
-        currentPassword,
-        user.password,
-      );
+      const isCurrentValid = isHash
+        ? await bcrypt.compare(currentPassword, stored) // hash-ветка
+        : currentPassword === stored; // legacy-ветка (plaintext)
+
       if (!isCurrentValid) {
         throw new UnauthorizedException('Старый пароль не верный');
       }
     }
 
-    const isSameAsOld = await bcrypt.compare(newPassword, user.password);
+    // 2) Запрещаем совпадение нового с текущим
+    const isSameAsOld = isHash
+      ? await bcrypt.compare(newPassword, stored) // сравниваем с хэшом
+      : newPassword === stored; // сравниваем со строкой
+
     if (isSameAsOld) {
       throw new HttpException(
         'Пароль не должен совпадать с предыдущим',
@@ -144,6 +157,7 @@ export class AuthService {
       );
     }
 
+    // 3) Возвращаем ХЭШ нового пароля (сохраняй его в БД выше по слою)
     return this.hashPassword(newPassword);
   }
 }

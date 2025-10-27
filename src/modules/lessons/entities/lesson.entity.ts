@@ -4,20 +4,31 @@ import {
   PrimaryGeneratedColumn,
   Column,
   BaseEntity,
-  ManyToOne,
   JoinColumn,
+  OneToOne,
+  ManyToOne,
 } from 'typeorm';
 import { ApiProperty } from '@nestjs/swagger';
+import { QuizEntity } from 'src/modules/quiz/entities/quiz.entity';
 import { CourseEntity } from 'src/modules/courses/entities/course.entity';
-import { SectionEntity } from 'src/modules/sections/entities/section.entity';
 
-export enum ContentType {
-  VIDEO = 'video',
-  TEXT = 'text',
-  QUIZ = 'quiz',
+export class LessonPage {
+  @ApiProperty({
+    example: 1,
+    description: 'Номер страницы, с которой начинается урок',
+  })
+  @Column({ type: 'int' })
+  startWith: number;
+
+  @ApiProperty({
+    example: 10,
+    description: 'Номер страницы, на которой заканчивается урок',
+  })
+  @Column({ type: 'int' })
+  end: number;
 }
 
-@Entity({ name: 'lessons' })
+@Entity({ name: 'lesson' })
 export class LessonEntity extends BaseEntity {
   @ApiProperty({ example: 1, description: 'ID урока' })
   @PrimaryGeneratedColumn()
@@ -31,35 +42,36 @@ export class LessonEntity extends BaseEntity {
   title: string;
 
   @ApiProperty({
-    enum: ContentType,
-    example: ContentType.VIDEO,
-    description: 'Тип контента',
+    description: 'Путь контента урока',
   })
-  @Column({ type: 'enum', enum: ContentType })
-  contentType: ContentType;
+  @Column({ nullable: false })
+  filePath: string;
 
   @ApiProperty({
-    example: 'https://video-host.com/lesson123',
-    description: 'Контент (URL или текст)',
+    description: 'JSON-страница урока',
+    type: LessonPage,
+    example: { startWith: 1, end: 10 },
   })
-  @Column({ type: 'text' })
-  content: string;
+  @Column({ type: 'json', nullable: true })
+  pages: LessonPage;
 
+  @ApiProperty({
+    example: 1,
+    description: 'ID курса, к которому относится урок',
+  })
+  @OneToOne(() => QuizEntity, (quiz) => quiz.lessonId, {
+    // onDelete: 'CASCADE',
+    nullable: true,
+    // cascade: true,
+  })
+  @JoinColumn({ name: 'quizId' })
+  quizId: QuizEntity;
+
+  // ---- Курс (многие уроки к одному курсу) ----
   @ManyToOne(() => CourseEntity, (course) => course.lessons, {
+    nullable: true,
     onDelete: 'CASCADE',
   })
   @JoinColumn({ name: 'courseId' })
-  course: CourseEntity;
-
-  @Column()
-  courseId: number;
-
-  @ManyToOne(() => SectionEntity, (section) => section.lessons, {
-    onDelete: 'SET NULL',
-  })
-  @JoinColumn({ name: 'sectionId' })
-  section: SectionEntity;
-
-  @Column({ nullable: true })
-  sectionId: number;
+  courseId: CourseEntity;
 }

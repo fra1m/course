@@ -5,7 +5,7 @@ import {
   HttpStatus,
   Injectable,
 } from '@nestjs/common';
-import { JwtService } from '@nestjs/jwt';
+import { JwtService, TokenExpiredError } from '@nestjs/jwt';
 import { Request } from 'express';
 import { JwtPayload } from 'src/interfaces/jwt-payload.interface';
 
@@ -17,20 +17,19 @@ export class JwtAuthGuard implements CanActivate {
     const req = context.switchToHttp().getRequest<Request>() as Request & {
       user?: JwtPayload;
     };
-
     const authHeader = req.headers.authorization;
+
     if (!authHeader) {
       throw new HttpException(
-        'Нет заголовка авторизации',
+        'Вам необходимо авторизоваться',
         HttpStatus.UNAUTHORIZED,
       );
     }
 
     const [bearer, token] = authHeader.split(' ');
-
     if (bearer !== 'Bearer' || !token) {
       throw new HttpException(
-        'Неверный формат токена',
+        'Вам необходимо авторизоваться',
         HttpStatus.UNAUTHORIZED,
       );
     }
@@ -39,7 +38,10 @@ export class JwtAuthGuard implements CanActivate {
       const user = this.jwtService.verify<JwtPayload>(token);
       req.user = user;
       return true;
-    } catch {
+    } catch (err) {
+      if (err instanceof TokenExpiredError) {
+        throw new HttpException('Токен истек', HttpStatus.UNAUTHORIZED);
+      }
       throw new HttpException('Доступ запрещён', HttpStatus.FORBIDDEN);
     }
   }
