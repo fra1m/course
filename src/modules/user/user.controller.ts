@@ -47,8 +47,8 @@ import { ResetPasswordDto } from './dto/resetPassword.dto';
 export class UserController {
   constructor(private readonly userService: UserService) {}
 
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN)
+  // @UseGuards(JwtAuthGuard, RolesGuard)
+  // @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Cоздание пользователя', operationId: '1' })
   @ApiExtraModels(UserEntity, TokenEntity, CreateUserDto)
   // @ApiResponse({
